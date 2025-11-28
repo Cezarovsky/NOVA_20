@@ -380,18 +380,22 @@ class LLMInterface:
         # Build messages
         messages = [{"role": "user", "content": prompt}]
         
+        # Build API parameters (Anthropic doesn't support top_k)
+        api_params = {
+            "model": model,
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "top_p": top_p,
+            "stop_sequences": stop_sequences or []
+        }
+        
+        # Add system prompt if provided
+        if system:
+            api_params["system"] = system
+        
         # API call
-        response = self.anthropic_client.messages.create(
-            model=model,
-            messages=messages,
-            system=system,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            top_p=top_p,
-            top_k=top_k,
-            stop_sequences=stop_sequences or [],
-            **kwargs
-        )
+        response = self.anthropic_client.messages.create(**api_params, **kwargs)
         
         # Extract text
         text = response.content[0].text if response.content else ""
