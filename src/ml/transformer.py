@@ -1022,6 +1022,94 @@ class Transformer(nn.Module):
             }
         
         return logits
+    
+    def forward_embeddings(
+        self,
+        embeddings: Tensor,
+        attention_mask: Optional[Tensor] = None,
+        return_attention: bool = False
+    ) -> Tensor:
+        """
+        Forward pass with pre-computed embeddings (for AI2AI training).
+        
+        Skips embedding layer and directly processes embeddings through
+        transformer blocks. Used for training with AI2AI protocol where
+        Claude provides embeddings directly.
+        
+        Args:
+            embeddings: Pre-computed embeddings [batch, seq_len, d_model]
+            attention_mask: Attention mask [batch, seq_len]
+            return_attention: Whether to return attention weights
+            
+        Returns:
+            Output embeddings [batch, seq_len, d_model]
+        """
+        batch_size, seq_len, emb_dim = embeddings.shape
+        
+        if emb_dim != self.d_model:
+            raise ValueError(
+                f"Embedding dimension {emb_dim} doesn't match model dimension {self.d_model}"
+            )
+        
+        # Create causal mask if needed (for decoder-only mode)
+        if attention_mask is None:
+            # Full attention (no masking)
+            mask = None
+        else:
+            # Convert mask from [batch, seq_len] to [batch, 1, seq_len, seq_len]
+            # Create causal mask for autoregressive generation
+            causal_mask = torch.triu(
+                torch.ones(seq_len, seq_len, device=embeddings.device),
+                diagonal=1
+            ).bool()
+            
+            # Combine with padding mask
+            if attention_mask.dim() == 2:
+                # [batch, seq_len] → [batch, 1, 1, seq_len]
+                padding_mask = (~attention_mask.bool()).unsqueeze(1).unsqueeze(2)
+                # Broadcast and combine
+                mask = padding_mask | causal_mask.unsqueeze(0)
+            else:
+                mask = causal_mask.unsqueeze(0).expand(batch_size, -1, -1, -1)
+        
+        # Pass through encoder/decoder blocks
+        # For GPT-style (decoder-only): use decoder
+        # For BERT-style (encoder-only): use encoder
+        
+        if hasattr(self, 'encoder') and hasattr(self, 'decoder'):
+            # Full encoder-decoder
+            # In this case, treat embeddings as encoder input
+            # Pass through encoder blocks directly (skip embedding layer)
+            output = embeddings
+            
+            # Apply encoder layers manually
+            for layer in self.encoder.layers:
+                output = layer(output, mask)
+            
+            return output
+        
+        elif hasattr(self, 'decoder'):
+            # Decoder-only (GPT-style)
+            output = embeddings
+            
+            # Apply decoder layers
+            for layer in self.decoder.layers:
+                output, _, _ = layer(output, memory=None, tgt_mask=mask, memory_mask=None)
+            
+            return output
+        
+        elif hasattr(self, 'encoder'):
+            # Encoder-only (BERT-style)
+            output = embeddings
+            
+            # Apply encoder layers
+            for layer in self.encoder.layers:
+                output = layer(output, mask)
+            
+            return output
+        
+        else:
+            raise RuntimeError("Model must have encoder, decoder, or both")
 
 
 if __name__ == "__main__":
