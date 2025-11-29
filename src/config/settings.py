@@ -111,9 +111,9 @@ class Settings(BaseSettings):
     # =========================================================================
     
     DEFAULT_LLM_MODEL: str = Field(
-        default="claude-3-5-sonnet-20241022",
+        default="claude-3-haiku-20240307",
         description="Default LLM model for text generation. "
-                    "Options: claude-3-5-sonnet-20241022, mistral-large-latest"
+                    "Options: claude-3-haiku-20240307, claude-3-sonnet-20240229, mistral-large-latest"
     )
     
     DEFAULT_EMBEDDING_MODEL: str = Field(
@@ -123,9 +123,9 @@ class Settings(BaseSettings):
     )
     
     DEFAULT_VISION_MODEL: str = Field(
-        default="claude-3-5-sonnet-20241022",
+        default="claude-3-haiku-20240307",
         description="Default vision model for image analysis. "
-                    "Options: claude-3-5-sonnet-20241022"
+                    "Options: claude-3-sonnet-20240229, claude-3-opus-20240229"
     )
     
     FALLBACK_LLM_MODEL: str = Field(
