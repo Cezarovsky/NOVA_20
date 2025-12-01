@@ -76,3 +76,4 @@ dmypy.json
 *.tmp
 *.temp
 .cache/
+demo_chroma_*/
