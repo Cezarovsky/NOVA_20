@@ -22,6 +22,15 @@ Nova_20/
 │   │   ├── inference.py       # Inference engine + KV cache
 │   │   ├── sampling.py        # Top-k, top-p sampling
 │   │   └── optimization.py    # Performance optimizations
+│   ├── rag/                   # RAG System (NEW!)
+│   │   ├── embeddings.py      # Multi-strategy embeddings
+│   │   ├── vector_store.py    # ChromaDB integration
+│   │   ├── chunker.py         # Smart document chunking
+│   │   ├── retriever.py       # Semantic search + re-ranking
+│   │   ├── memory.py          # Multi-tier memory
+│   │   └── rag_pipeline.py    # Complete RAG orchestration
+│   ├── voice/                 # Voice Module
+│   │   └── tts.py             # Text-to-speech (pyttsx3)
 │   ├── core/
 │   │   ├── llm_interface.py   # API-based LLM interface
 │   │   └── vector_store.py    # ChromaDB wrapper
@@ -30,6 +39,9 @@ Nova_20/
 │   │   └── orchestrator.py
 │   ├── utils/                 # Utilities
 │   └── ui/                    # Streamlit interface
+├── examples/                  # Demo scripts
+│   ├── voice_demo.py          # TTS demonstrations
+│   └── rag_demo.py            # RAG demonstrations
 ├── tests/                     # Unit & integration tests
 ├── data/                      # Vector DB & cache
 ├── logs/                      # Application logs
@@ -84,15 +96,39 @@ streamlit run src/ui/streamlit_app.py
 
 # Or run Python scripts directly
 python src/ml/attention.py
+
+# Run Voice Demo
+python examples/voice_demo.py
+
+# Run RAG Demo (comprehensive test suite)
+python examples/rag_demo.py
 ```
 
 ## 📚 Documentation
 
 - **Architecture**: `Documentation/arhitectura_nova.md` - Comprehensive technical architecture
 - **Implementation Roadmap**: `Documentation/implementation.md` - Step-by-step development plan (3600+ lines)
+- **RAG Implementation**: `RAG_IMPLEMENTATION.md` - Complete RAG system documentation
 - **API Docs**: Generate with `pdoc src/` (coming soon)
 
 ## 🧪 Key Features
+
+### 🧠 RAG System (NEW!)
+- ✅ **Advanced Retrieval-Augmented Generation**
+- ✅ **3 Embedding Strategies**: Sentence transformers, NOVA custom, hybrid
+- ✅ **ChromaDB Integration**: Persistent vector storage + multi-collection
+- ✅ **Smart Chunking**: 5 strategies (fixed/sentence/paragraph/code/smart)
+- ✅ **Semantic Search**: Re-ranking + MMR diversity algorithm
+- ✅ **Multi-tier Memory**: Conversation (short), Knowledge (long), Working (context)
+- ✅ **Multilingual**: Romanian + English support
+- ✅ **Production Ready**: 2,400+ lines with comprehensive demos
+
+### 🎙️ Voice Module
+- ✅ **Text-to-Speech**: Offline TTS cu pyttsx3
+- ✅ **Feminine Voice**: Elegant și expresivă
+- ✅ **Multilingual**: Suport pentru română și engleză
+- ✅ **Customizable**: Rate, volume, voice selection
+- ✅ **5 Demo Scenarios**: Basic TTS, Romanian, English, customization, context-aware
 
 ### Deep Learning Core
 - ✅ **Scaled Dot-Product Attention** cu causal masking
@@ -122,34 +158,44 @@ python src/ml/attention.py
 | Language | Python | 3.11+ |
 | LLM | Anthropic Claude | 3.5 Sonnet |
 | LLM (Alt) | Mistral AI | Large/Small |
-| Embeddings | Mistral Embed | 1024D |
-| Vector DB | ChromaDB | 0.5.0+ |
+| Embeddings | Sentence Transformers | Multi-MiniLM-L12 |
+| Embeddings (Alt) | Mistral Embed | 1024D |
+| Vector DB | ChromaDB | 1.3.5 |
 | Deep Learning | PyTorch | 2.0+ |
+| TTS | pyttsx3 | 2.90 |
+| PDF | PyPDF2 | 3.0.1 |
 | UI | Streamlit | 1.39.0+ |
 | Audio | Faster-Whisper | 1.0.0+ |
 | Testing | pytest | Latest |
 
 ## 📊 Development Status
 
-**Current Phase**: Phase 1 - Foundation & Core ML Infrastructure (15% complete)
+**Current Phase**: Advanced Features - RAG + Voice Integration (50% complete)
 
 ### Completed ✅
 - [x] Project structure setup
 - [x] Virtual environment & dependencies
 - [x] Documentation (architecture + roadmap)
 - [x] Environment configuration
+- [x] **ML Core**: Complete transformer, attention, embeddings
+- [x] **Training Pipeline**: Full training with mixed precision
+- [x] **Validation & Metrics**: Comprehensive evaluation
+- [x] **Advanced Training**: LR scheduling, gradient clipping
+- [x] **Data Pipeline**: Multi-source data loading
+- [x] **Inference Engine**: KV cache, beam search, streaming
+- [x] **Voice Module**: TTS with pyttsx3, multilingual support
+- [x] **RAG System**: Advanced retrieval with ChromaDB (2,400+ lines)
 
 ### In Progress 🔄
-- [ ] Attention mechanism implementation
-- [ ] KV cache & inference engine
-- [ ] Sampling strategies
-- [ ] Token embeddings
+- [ ] Integration of RAG with main NOVA model
+- [ ] Web interface with voice + RAG
+- [ ] End-to-end conversational system
 
 ### Next Steps ⏳
-- [ ] Complete Transformer architecture
-- [ ] Feed-Forward Networks
-- [ ] Full model assembly
-- [ ] Testing suite
+- [ ] Multi-agent orchestration with RAG
+- [ ] Advanced memory management
+- [ ] Production deployment
+- [ ] Performance optimization
 
 ## 🧑‍💻 Development
 
@@ -223,4 +269,6 @@ Pentru întrebări despre arhitectură sau implementare, consultă documentația
 
 ---
 
-**Status**: 🔄 Active Development | **Version**: 0.1.0-alpha | **Last Updated**: 28 Nov 2025
+**Status**: 🚀 Active Development | **Version**: 0.5.0-beta | **Last Updated**: Dec 2024
+
+**Latest Features**: RAG System (commit `650b1be`) + Voice Module (commit `01ed670`)
