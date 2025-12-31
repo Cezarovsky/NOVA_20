@@ -41,40 +41,79 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS
+# Custom CSS - Light theme with black text
 st.markdown("""
 <style>
+    /* Force light theme */
+    .stApp {
+        background-color: #FFFFFF;
+        color: #000000;
+    }
+    
+    /* Main content area */
+    .main .block-container {
+        background-color: #FFFFFF;
+        color: #000000;
+    }
+    
+    /* Headers */
     .main-header {
         font-size: 2.5rem;
         font-weight: bold;
         text-align: center;
-        color: #FF6B9D;
+        color: #FF1493;
         margin-bottom: 0;
     }
     .sub-header {
         text-align: center;
-        color: #666;
+        color: #333333;
         margin-bottom: 2rem;
         font-style: italic;
     }
+    
+    /* Chat messages */
     .chat-message {
         padding: 1rem;
         border-radius: 0.5rem;
         margin-bottom: 1rem;
+        color: #000000;
     }
     .user-message {
         background-color: #E3F2FD;
         border-left: 4px solid #2196F3;
+        color: #000000;
     }
     .assistant-message {
         background-color: #FCE4EC;
         border-left: 4px solid #FF6B9D;
+        color: #000000;
     }
+    
+    /* Stats box */
     .stats-box {
         padding: 1rem;
-        background-color: #F5F5F5;
+        background-color: #F0F0F0;
         border-radius: 0.5rem;
         margin-top: 1rem;
+        color: #000000;
+    }
+    
+    /* Sidebar */
+    section[data-testid="stSidebar"] {
+        background-color: #F8F9FA;
+        color: #000000;
+    }
+    
+    /* Text elements */
+    p, span, div, label {
+        color: #000000 !important;
+    }
+    
+    /* Input fields */
+    .stTextInput input, .stTextArea textarea {
+        background-color: #FFFFFF;
+        color: #000000;
+        border: 1px solid #CCCCCC;
     }
 </style>
 """, unsafe_allow_html=True)
