@@ -292,12 +292,19 @@ def generate_response(user_input: str) -> str:
     try:
         # Use RAG pipeline if available
         if st.session_state.rag_pipeline and st.session_state.llm:
-            # Query RAG system
-            response_text = st.session_state.rag_pipeline.query(
-                query=user_input,
-                llm_interface=st.session_state.llm,
-                temperature=st.session_state.temperature
+            # Get context from RAG (includes conversation history + knowledge)
+            context = st.session_state.rag_pipeline.chat(
+                user_message=user_input,
+                n_results=3
             )
+            
+            # Generate response with LLM
+            response = st.session_state.llm.generate(
+                prompt=context,
+                temperature=st.session_state.temperature,
+                max_tokens=1024
+            )
+            response_text = response.text
             
             # Add assistant response to conversation memory
             st.session_state.rag_pipeline.add_assistant_response(response_text)
