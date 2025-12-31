@@ -292,25 +292,41 @@ def generate_response(user_input: str) -> str:
     try:
         # Use RAG pipeline if available
         if st.session_state.rag_pipeline and st.session_state.llm:
-            # Get context from RAG (includes conversation history + knowledge)
-            context = st.session_state.rag_pipeline.chat(
-                user_message=user_input,
-                n_results=3
-            )
-            
-            # Generate response with LLM
-            response = st.session_state.llm.generate(
-                prompt=context,
-                temperature=st.session_state.temperature,
-                max_tokens=1024
-            )
-            response_text = response.text
-            
-            # Add assistant response to conversation memory
-            st.session_state.rag_pipeline.add_assistant_response(response_text)
+            try:
+                # Get context from RAG (includes conversation history + knowledge)
+                logger.info(f"Getting RAG context for: {user_input[:50]}...")
+                context = st.session_state.rag_pipeline.chat(
+                    user_message=user_input,
+                    n_results=3
+                )
+                logger.info(f"RAG context retrieved: {len(context)} chars")
+                
+                # Generate response with LLM
+                logger.info("Generating LLM response...")
+                response = st.session_state.llm.generate(
+                    prompt=context,
+                    temperature=st.session_state.temperature,
+                    max_tokens=1024
+                )
+                response_text = response.text
+                logger.info(f"LLM response generated: {len(response_text)} chars")
+                
+                # Add assistant response to conversation memory
+                st.session_state.rag_pipeline.add_assistant_response(response_text)
+                
+            except Exception as rag_error:
+                # If RAG fails, fallback to direct LLM
+                logger.warning(f"RAG failed: {rag_error}. Falling back to direct LLM.")
+                response = st.session_state.llm.generate(
+                    prompt=user_input,
+                    temperature=st.session_state.temperature,
+                    max_tokens=1024
+                )
+                response_text = response.text
             
         elif st.session_state.llm:
             # Fallback: Direct LLM without RAG
+            logger.info("Using direct LLM (no RAG)")
             response = st.session_state.llm.generate(
                 prompt=user_input,
                 temperature=st.session_state.temperature,
@@ -318,7 +334,7 @@ def generate_response(user_input: str) -> str:
             )
             response_text = response.text
         else:
-            response_text = "❌ LLM not initialized. Please check your API keys."
+            response_text = "❌ LLM not initialized. Please check your API keys in .env file."
         
         # Voice output if enabled
         if st.session_state.voice_enabled and st.session_state.voice:
@@ -330,8 +346,10 @@ def generate_response(user_input: str) -> str:
         return response_text
         
     except Exception as e:
+        import traceback
         logger.error(f"Response generation failed: {e}")
-        return f"❌ Error generating response: {str(e)}"
+        logger.error(traceback.format_exc())
+        return f"❌ Error: {str(e)}\n\nPlease check the terminal for detailed logs."
 
 
 def main():
