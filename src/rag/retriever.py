@@ -106,10 +106,15 @@ class SemanticRetriever:
             retrieved = retrieved[:n_results]
         
         # Apply diversity if requested
-        if self.diversity_weight > 0:
+        if self.diversity_weight > 0 and len(retrieved) > 0:
             retrieved = self._diversify(retrieved, n_results)
         
-        logger.info(f"✓ Retrieved {len(retrieved)} documents (score range: {retrieved[0]['score']:.3f}-{retrieved[-1]['score']:.3f})")
+        # Log results
+        if len(retrieved) > 0:
+            logger.info(f"✓ Retrieved {len(retrieved)} documents (score range: {retrieved[0]['score']:.3f}-{retrieved[-1]['score']:.3f})")
+        else:
+            logger.warning("⚠ No documents retrieved - knowledge base may be empty")
+        
         return retrieved
     
     def _rerank(
