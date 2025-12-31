@@ -1,0 +1,147 @@
+super() = Apelează clasa părinte (parent class)
+Exemplu simplu fără neural networks:
+
+class Animal:
+    def __init__(self, nume):
+        self.nume = nume
+        print(f"Animal creat: {nume}")
+
+class Caine(Animal):  # Caine MOȘTENEȘTE din Animal
+    def __init__(self, nume, rasa):
+        super().__init__(nume)  # ← Apelează __init__ din Animal
+        self.rasa = rasa
+        print(f"Rasă: {rasa}")
+
+rex = Caine("Rex", "German Shepherd")
+# Output:
+# Animal creat: Rex
+# Rasă: German Shepherd
+
+Fără super():
+
+class Caine(Animal):
+    def __init__(self, nume, rasa):
+        # NU apelăm super()!
+        self.rasa = rasa
+
+rex = Caine("Rex", "German Shepherd")
+# ERROR! self.nume nu există - Animal.__init__ nu a fost apelat!
+print(rex.nume)  # AttributeError: 'Caine' object has no attribute 'nume'
+
+În PyTorch (step1_embeddings.py):
+
+class SimpleEmbedding(nn.Module):  # ← Moștenim din nn.Module
+    def __init__(self, vocab_size, embedding_dim):
+        super().__init__()  # ← CRUCIAL! Inițializează nn.Module
+        
+        self.embedding = nn.Embedding(vocab_size, embedding_dim)
+
+Ce face super().__init__() aici?
+nn.Module.init() setează:
+
+Tracking pentru parametri - PyTorch știe ce parametri să învețe
+GPU support - .cuda(), .to(device) funcționează
+Training/eval modes - .train(), .eval()
+Hooks și callbacks
+State management - salvare/încărcare modele
+Fără super().__init__() → DEZASTRU:
+
+class BrokenEmbedding(nn.Module):
+    def __init__(self, vocab_size, embedding_dim):
+        # NU apelăm super().__init__()!
+        self.embedding = nn.Embedding(vocab_size, embedding_dim)
+
+model = BrokenEmbedding(100, 64)
+
+# PROBLEME:
+model.parameters()  # ❌ Gol! PyTorch nu vede parametrii
+optimizer = torch.optim.Adam(model.parameters())  # ❌ Nu învață nimic
+model.cuda()  # ❌ Nu merge pe GPU
+torch.save(model.state_dict(), "model.pt")  # ❌ Salvează gol
+
+Cu super().__init__() → FUNCȚIONEAZĂ:
+
+class SimpleEmbedding(nn.Module):
+    def __init__(self, vocab_size, embedding_dim):
+        super().__init__()  # ✅ Inițializează nn.Module
+        self.embedding = nn.Embedding(vocab_size, embedding_dim)
+
+model = SimpleEmbedding(100, 64)
+
+# TOTUL FUNCȚIONEAZĂ:
+list(model.parameters())  # ✅ [embedding.weight with 6400 params]
+optimizer = torch.optim.Adam(model.parameters())  # ✅ Învață
+model.cuda()  # ✅ Merge pe GPU
+torch.save(model.state_dict(), "model.pt")  # ✅ Salvează corect
+
+Vizualizare - Lanț de moștenire:
+
+class nn.Module:
+    def __init__(self):
+        self._parameters = {}   # ← Pentru tracking parametri
+        self._modules = {}      # ← Pentru sub-layers
+        self._buffers = {}      # ← Pentru tensori non-trainable
+        # ... mult cod intern PyTorch
+
+class SimpleEmbedding(nn.Module):
+    def __init__(self, vocab_size, embedding_dim):
+        super().__init__()  # ← Setează _parameters, _modules, etc.
+        
+        # Acum când facem self.embedding = ...,
+        # nn.Module știe să-l trackuiască!
+        self.embedding = nn.Embedding(vocab_size, embedding_dim)
+
+
+Analogie:
+super() = Apelezi constructorul părintelui înainte să construiești tu
+
+class Casa:
+    def __init__(self):
+        self.fundatie = "beton"
+        self.pereti = "caramida"
+
+class CasaInteligenta(Casa):
+    def __init__(self):
+        super().__init__()  # ← Construiește fundație + pereți
+        
+        # ACUM poți adăuga extras:
+        self.senzori = ["temperatura", "luminozitate"]
+        self.automatizari = ["încălzire", "lumini"]
+
+# Fără super():
+class CasaStricata(Casa):
+    def __init__(self):
+        # NU apelăm super()!
+        self.senzori = ["temperatura"]
+        # ❌ Nu avem fundatie și pereti!
+
+
+Regula:
+ÎNTOTDEAUNA când moștenești nn.Module, prima linie în __init__ trebuie să fie:
+
+super().__init__()
+
+Altfel PyTorch nu funcționează corect! ❌
+
+Verificare rapidă:
+
+class SimpleEmbedding(nn.Module):
+    def __init__(self, vocab_size, embedding_dim):
+        super().__init__()  # ✅ DA!
+        self.embedding = nn.Embedding(vocab_size, embedding_dim)
+
+# Test:
+model = SimpleEmbedding(10, 8)
+print(len(list(model.parameters())))  # ✅ 1 (embedding.weight)
+print(model.parameters())  # ✅ Generator cu parametri
+
+# Fără super():
+class BrokenEmbedding(nn.Module):
+    def __init__(self, vocab_size, embedding_dim):
+        # super().__init__()  # ❌ Comentat!
+        self.embedding = nn.Embedding(vocab_size, embedding_dim)
+
+model = BrokenEmbedding(10, 8)
+print(len(list(model.parameters())))  # ❌ 0 (gol!)
+
+super().__init__() = "Tati PyTorch, pregătește-mi infrastructura înainte să-mi construiesc layer-ul!" 🏗️
