@@ -25,6 +25,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.core.llm_interface import LLMInterface, LLMProvider
 from src.rag.rag_pipeline import RAGPipeline
+from src.rag.conversation_store import ConversationStore
 from src.voice.tts import NovaVoice
 from src.config.settings import get_settings
 import logging
@@ -121,8 +122,16 @@ st.markdown("""
 
 def initialize_session_state():
     """Initialize Streamlit session state variables"""
+    # Initialize conversation store (persistent)
+    if 'conversation_store' not in st.session_state:
+        st.session_state.conversation_store = ConversationStore()
+    
+    # Load previous conversation if exists
     if 'messages' not in st.session_state:
-        st.session_state.messages = []
+        previous_messages = st.session_state.conversation_store.load_conversation()
+        st.session_state.messages = previous_messages
+        if previous_messages:
+            logger.info(f"📂 Restored {len(previous_messages)} messages from previous session")
     
     if 'rag_pipeline' not in st.session_state:
         try:
@@ -239,15 +248,41 @@ def render_sidebar():
             st.write(f"📄 Documents: {stats.get('total_documents', 0)}")
             st.write(f"💬 Messages: {stats.get('conversation_messages', 0)}")
         
+        # Memory stats
+        if 'conversation_store' in st.session_state:
+            memory_stats = st.session_state.conversation_store.get_stats()
+            st.markdown("**Persistent Memory:**")
+            st.write(f"💾 Current: {len(st.session_state.messages)} messages")
+            st.write(f"📦 Archived: {memory_stats['total_conversations']} conversations")
+            st.write(f"📊 Total messages: {memory_stats['total_messages']}")
+        
         # Conversation controls
         st.markdown("---")
         st.markdown("### 💬 Conversation")
         
-        if st.button("🗑️ Clear Chat", use_container_width=True):
-            st.session_state.messages = []
-            if st.session_state.rag_pipeline:
-                st.session_state.rag_pipeline.clear_conversation()
-            st.rerun()
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("🗑️ Clear Chat", use_container_width=True):
+                # Archive current conversation before clearing
+                if st.session_state.messages:
+                    st.session_state.conversation_store.archive_conversation()
+                    logger.info("📦 Conversation archived before clearing")
+                
+                st.session_state.messages = []
+                if st.session_state.rag_pipeline:
+                    st.session_state.rag_pipeline.clear_conversation()
+                st.rerun()
+        
+        with col2:
+            if st.button("📦 Archive", use_container_width=True):
+                if st.session_state.messages:
+                    st.session_state.conversation_store.archive_conversation()
+                    st.session_state.messages = []
+                    st.success("Conversation archived!")
+                    st.rerun()
+                else:
+                    st.info("No messages to archive")
         
         if st.button("📥 Export Chat", use_container_width=True):
             # TODO: Implement export functionality
@@ -420,6 +455,10 @@ def main():
             "role": "assistant",
             "content": response
         })
+        
+        # Save conversation to disk
+        st.session_state.conversation_store.save_conversation(st.session_state.messages)
+        logger.debug("💾 Conversation saved to disk")
         
         # Rerun to update chat display
         st.rerun()
