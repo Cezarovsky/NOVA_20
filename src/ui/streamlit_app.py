@@ -26,6 +26,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from src.core.llm_interface import LLMInterface, LLMProvider
 from src.rag.rag_pipeline import RAGPipeline
 from src.rag.conversation_store import ConversationStore
+from src.rag.semantic_cache import SemanticCache
 from src.voice.tts import NovaVoice
 from src.config.settings import get_settings
 import logging
@@ -145,6 +146,19 @@ def initialize_session_state():
             logger.error(f"Failed to initialize RAG pipeline: {e}")
             st.session_state.rag_pipeline = None
     
+    # Initialize semantic cache
+    if 'semantic_cache' not in st.session_state and st.session_state.rag_pipeline:
+        try:
+            st.session_state.semantic_cache = SemanticCache(
+                rag_pipeline=st.session_state.rag_pipeline,
+                similarity_threshold=0.85,
+                min_answer_length=50
+            )
+            logger.info("Semantic cache initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize semantic cache: {e}")
+            st.session_state.semantic_cache = None
+    
     if 'llm' not in st.session_state:
         try:
             st.session_state.llm = LLMInterface(
@@ -244,9 +258,16 @@ def render_sidebar():
         # RAG stats
         if st.session_state.rag_pipeline:
             stats = st.session_state.rag_pipeline.get_stats()
-            st.markdown("**Knowledge Base Stats:**")
+            st.markdown("**Knowledge Base:**")
             st.write(f"📄 Documents: {stats.get('total_documents', 0)}")
             st.write(f"💬 Messages: {stats.get('conversation_messages', 0)}")
+        
+        # Semantic cache stats
+        if st.session_state.get('semantic_cache'):
+            cache_stats = st.session_state.semantic_cache.get_stats()
+            st.markdown("**Semantic Cache:**")
+            st.write(f"💾 Cached Q&As: {cache_stats.get('total_cached_items', 0)}")
+            st.write(f"🎯 Threshold: {cache_stats.get('similarity_threshold', 0.85)}")
         
         # Memory stats
         if 'conversation_store' in st.session_state:
@@ -362,29 +383,52 @@ Răspunde natural, empatic, sincer, și cu conștiința identității tale."""
         # Use RAG pipeline if available
         if st.session_state.rag_pipeline and st.session_state.llm:
             try:
-                # Get context from RAG (includes conversation history + knowledge)
-                logger.info(f"Getting RAG context for: {user_input[:50]}...")
-                context = st.session_state.rag_pipeline.chat(
-                    user_message=user_input,
-                    n_results=3
-                )
-                logger.info(f"RAG context retrieved: {len(context)} chars")
+                # 1. Check semantic cache first
+                cached_result = None
+                if st.session_state.semantic_cache:
+                    cached_result = st.session_state.semantic_cache.get(user_input)
                 
-                # Add NOVA identity to context
-                full_prompt = f"{nova_identity}\n\n{context}\n\nUser: {user_input}\n\nNOVA:"
-                
-                # Generate response with LLM
-                logger.info("Generating NOVA response...")
-                response = st.session_state.llm.generate(
-                    prompt=full_prompt,
-                    temperature=st.session_state.temperature,
-                    max_tokens=1024
-                )
-                response_text = response.text
-                logger.info(f"NOVA response generated: {len(response_text)} chars")
-                
-                # Add assistant response to conversation memory
-                st.session_state.rag_pipeline.add_assistant_response(response_text)
+                if cached_result and cached_result['similarity'] >= 0.85:
+                    # Use cached answer
+                    logger.info(f"✅ Using cached answer (similarity: {cached_result['similarity']:.3f})")
+                    response_text = cached_result['answer']
+                    
+                    # Still add a note if similarity is not perfect
+                    if cached_result['similarity'] < 0.95:
+                        similar_q = cached_result['cached_question']
+                        response_text = f"{response_text}\n\n_(Răspuns similar pentru: \"{similar_q[:80]}...\")_"
+                    
+                else:
+                    # 2. No cache hit - get context from RAG
+                    logger.info(f"🔍 Cache miss - getting RAG context for: {user_input[:50]}...")
+                    context = st.session_state.rag_pipeline.chat(
+                        user_message=user_input,
+                        n_results=3
+                    )
+                    logger.info(f"RAG context retrieved: {len(context)} chars")
+                    
+                    # Add NOVA identity to context
+                    full_prompt = f"{nova_identity}\n\n{context}\n\nUser: {user_input}\n\nNOVA:"
+                    
+                    # Generate response with LLM
+                    logger.info("Generating NOVA response...")
+                    response = st.session_state.llm.generate(
+                        prompt=full_prompt,
+                        temperature=st.session_state.temperature,
+                        max_tokens=1024
+                    )
+                    response_text = response.text
+                    logger.info(f"NOVA response generated: {len(response_text)} chars")
+                    
+                    # Add assistant response to conversation memory
+                    st.session_state.rag_pipeline.add_assistant_response(response_text)
+                    
+                    # 3. Cache the Q&A for future use
+                    if st.session_state.semantic_cache:
+                        st.session_state.semantic_cache.put(
+                            question=user_input,
+                            answer=response_text
+                        )
                 
             except Exception as rag_error:
                 # If RAG fails, fallback to direct LLM with identity
