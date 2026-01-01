@@ -20,12 +20,19 @@ class ConversationStore:
     Saves to JSON files, one per conversation session.
     """
     
-    def __init__(self, storage_dir: str = "data/conversations"):
+    def __init__(
+        self, 
+        storage_dir: str = "data/conversations",
+        max_archived_conversations: int = 20,
+        max_messages_per_session: int = 100
+    ):
         """
         Initialize conversation store.
         
         Args:
             storage_dir: Directory to store conversation files
+            max_archived_conversations: Max number of archived conversations to keep (FIFO)
+            max_messages_per_session: Max messages before auto-archiving current session
         """
         self.storage_dir = Path(storage_dir)
         self.storage_dir.mkdir(parents=True, exist_ok=True)
@@ -33,18 +40,33 @@ class ConversationStore:
         # Current session file
         self.current_session_file = self.storage_dir / "current_session.json"
         
+        # Limits
+        self.max_archived = max_archived_conversations
+        self.max_messages = max_messages_per_session
+        
         logger.info(f"✓ Conversation store initialized")
         logger.info(f"  Storage: {self.storage_dir}")
+        logger.info(f"  Max archived: {max_archived_conversations}")
+        logger.info(f"  Max messages/session: {max_messages_per_session}")
     
     def save_conversation(self, messages: List[Dict], session_id: Optional[str] = None):
         """
         Save conversation to disk.
+        Auto-archives if session exceeds max_messages.
+        Auto-cleans old archives if exceeding max_archived.
         
         Args:
             messages: List of message dictionaries
             session_id: Optional session identifier
         """
         try:
+            # Check if we need to auto-archive (session too long)
+            if len(messages) >= self.max_messages:
+                logger.info(f"📦 Auto-archiving: session reached {len(messages)} messages")
+                self.archive_conversation(session_id)
+                # Return early - let the UI start fresh
+                return
+            
             # Prepare conversation data
             conversation = {
                 'session_id': session_id or datetime.now().strftime("%Y%m%d_%H%M%S"),
@@ -58,6 +80,9 @@ class ConversationStore:
                 json.dump(conversation, f, indent=2, ensure_ascii=False)
             
             logger.debug(f"💾 Saved {len(messages)} messages to disk")
+            
+            # Cleanup old archives (FIFO)
+            self._cleanup_old_archives()
             
         except Exception as e:
             logger.error(f"Failed to save conversation: {e}")
@@ -179,9 +204,46 @@ class ConversationStore:
         
         total_messages = sum(c['message_count'] for c in conversations)
         
+        # Calculate storage size
+        total_size = sum(
+            f.stat().st_size 
+            for f in self.storage_dir.glob("*.json")
+        ) / 1024  # KB
+        
         return {
             'total_conversations': len(conversations),
             'total_messages': total_messages,
             'has_current_session': self.current_session_file.exists(),
-            'storage_directory': str(self.storage_dir)
+            'storage_directory': str(self.storage_dir),
+            'storage_size_kb': round(total_size, 2),
+            'max_archived': self.max_archived,
+            'max_messages_per_session': self.max_messages
         }
+    
+    def _cleanup_old_archives(self):
+        """
+        Remove oldest archived conversations if exceeding max_archived limit.
+        FIFO strategy - First In, First Out.
+        """
+        try:
+            conversations = self.list_conversations()
+            
+            if len(conversations) <= self.max_archived:
+                return  # Within limits
+            
+            # How many to delete
+            to_delete = len(conversations) - self.max_archived
+            
+            # Sort by timestamp (oldest first)
+            conversations.sort(key=lambda x: x['timestamp'])
+            
+            # Delete oldest
+            for conv in conversations[:to_delete]:
+                file_path = self.storage_dir / conv['filename']
+                file_path.unlink()
+                logger.info(f"🗑️ FIFO cleanup: removed {conv['filename']}")
+            
+            logger.info(f"♻️ Cleaned up {to_delete} old conversation(s)")
+            
+        except Exception as e:
+            logger.error(f"Failed to cleanup archives: {e}")

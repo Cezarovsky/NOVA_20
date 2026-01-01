@@ -251,10 +251,23 @@ def render_sidebar():
         # Memory stats
         if 'conversation_store' in st.session_state:
             memory_stats = st.session_state.conversation_store.get_stats()
+            current_count = len(st.session_state.messages)
+            max_messages = memory_stats['max_messages_per_session']
+            
             st.markdown("**Persistent Memory:**")
-            st.write(f"💾 Current: {len(st.session_state.messages)} messages")
-            st.write(f"📦 Archived: {memory_stats['total_conversations']} conversations")
-            st.write(f"📊 Total messages: {memory_stats['total_messages']}")
+            
+            # Current session with progress
+            progress = current_count / max_messages
+            if progress >= 0.9:
+                st.warning(f"💾 Current: {current_count}/{max_messages} messages (will auto-archive soon)")
+            elif progress >= 0.7:
+                st.info(f"💾 Current: {current_count}/{max_messages} messages")
+            else:
+                st.write(f"💾 Current: {current_count}/{max_messages} messages")
+            
+            st.write(f"📦 Archived: {memory_stats['total_conversations']}/{memory_stats['max_archived']} conversations")
+            st.write(f"📊 Total: {memory_stats['total_messages']} messages")
+            st.write(f"💿 Storage: {memory_stats['storage_size_kb']} KB")
         
         # Conversation controls
         st.markdown("---")
@@ -456,9 +469,16 @@ def main():
             "content": response
         })
         
-        # Save conversation to disk
+        # Save conversation to disk (auto-archives if too long)
         st.session_state.conversation_store.save_conversation(st.session_state.messages)
-        logger.debug("💾 Conversation saved to disk")
+        
+        # Check if auto-archived (current session was too long)
+        if not st.session_state.conversation_store.current_session_file.exists():
+            logger.info("📦 Session auto-archived, starting fresh")
+            st.session_state.messages = []
+            st.success("🎉 Previous conversation archived! Starting fresh session.")
+        else:
+            logger.debug("💾 Conversation saved to disk")
         
         # Rerun to update chat display
         st.rerun()
