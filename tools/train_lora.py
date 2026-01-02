@@ -88,7 +88,7 @@ def prepare_dataset(data: List[Dict], tokenizer) -> Dataset:
 
 
 def train_lora(
-    model_name: str = "mistralai/Mistral-7B-v0.1",
+    model_name: str = "TinyLlama/TinyLlama-1.1B-Chat-v1.0",  # 2.2GB fits perfectly in M3 24GB!
     data_file: str = "data/training/nova_personality_complete.jsonl",
     output_dir: str = "models/nova-lora",
     epochs: int = 3,
@@ -124,11 +124,15 @@ def train_lora(
     
     # Load base model
     print(f"🔧 Loading base model...")
+    # TinyLlama 1.1B (~2.2GB) fits easily on MPS!
+    device = "mps" if use_mps and torch.backends.mps.is_available() else "cpu"
+    print(f"   ✅ Using device: {device.upper()}")
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
-        torch_dtype=torch.float16 if use_mps else torch.float32,
-        device_map="auto" if use_mps else None,
-        trust_remote_code=True
+        torch_dtype=torch.float16 if device == "mps" else torch.float32,
+        device_map={"": device},
+        trust_remote_code=True,
+        low_cpu_mem_usage=True
     )
     
     # Configure LoRA
