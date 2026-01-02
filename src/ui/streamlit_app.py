@@ -19,9 +19,14 @@ Date: 31 December 2024
 import streamlit as st
 import sys
 from pathlib import Path
+import os
 
-# Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+# Add project root to path for imports
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+# Change to project root directory
+os.chdir(str(project_root))
 
 from src.core.llm_interface import LLMInterface, LLMProvider
 from src.rag.rag_pipeline import RAGPipeline
