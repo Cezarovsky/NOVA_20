@@ -67,6 +67,7 @@ class LLMProvider(str, Enum):
     """Supported LLM providers"""
     ANTHROPIC = "anthropic"
     MISTRAL = "mistral"
+    OLLAMA = "ollama"  # Local models via Ollama (Mistral, Phi, TinyLlama, etc.)
 
 
 @dataclass
@@ -339,6 +340,17 @@ class LLMInterface:
                         stop_sequences=stop_sequences,
                         **kwargs
                     )
+                elif provider == LLMProvider.OLLAMA:
+                    response = self._generate_ollama(
+                        model=model,
+                        prompt=prompt,
+                        system=system,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                        top_p=top_p,
+                        stop_sequences=stop_sequences,
+                        **kwargs
+                    )
                 else:
                     raise ValueError(f"Unknown provider: {provider}")
                 
@@ -468,6 +480,72 @@ class LLMInterface:
                 'id': response.id,
                 'created': response.created,
                 'object': response.object
+            }
+        )
+    
+    def _generate_ollama(
+        self,
+        model: str,
+        prompt: str,
+        system: Optional[str],
+        max_tokens: int,
+        temperature: float,
+        top_p: float,
+        stop_sequences: Optional[List[str]],
+        **kwargs
+    ) -> LLMResponse:
+        """Generate using Ollama (local models)"""
+        import requests
+        import json
+        
+        # Build prompt with system message if provided
+        full_prompt = prompt
+        if system:
+            full_prompt = f"<|system|>\n{system}\n<|user|>\n{prompt}\n<|assistant|>"
+        
+        # Ollama API endpoint
+        url = "http://localhost:11434/api/generate"
+        
+        payload = {
+            "model": model,
+            "prompt": full_prompt,
+            "stream": False,
+            "options": {
+                "temperature": temperature,
+                "top_p": top_p,
+                "num_predict": max_tokens,
+            }
+        }
+        
+        if stop_sequences:
+            payload["options"]["stop"] = stop_sequences
+        
+        # API call
+        response = requests.post(url, json=payload, timeout=60)
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        # Extract text
+        text = data.get("response", "")
+        
+        # Build standardized response
+        return LLMResponse(
+            text=text,
+            model=model,
+            provider="ollama",
+            usage={
+                'prompt_tokens': data.get('prompt_eval_count', 0),
+                'completion_tokens': data.get('eval_count', 0),
+                'total_tokens': data.get('prompt_eval_count', 0) + data.get('eval_count', 0)
+            },
+            finish_reason=data.get('done_reason', 'stop'),
+            latency_ms=data.get('total_duration', 0) / 1_000_000,  # Convert nanoseconds to ms
+            metadata={
+                'model': data.get('model'),
+                'created_at': data.get('created_at'),
+                'done': data.get('done'),
+                'eval_duration': data.get('eval_duration', 0) / 1_000_000  # ms
             }
         )
     

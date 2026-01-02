@@ -75,6 +75,21 @@ ANTHROPIC_API_KEY=sk-ant-your-key-here
 MISTRAL_API_KEY=your-mistral-key-here
 ```
 
+**Optional: Setup Ollama for Local LLM**
+```bash
+# Install Ollama (macOS with Homebrew)
+brew install ollama
+
+# Start Ollama service
+brew services start ollama
+
+# Download Mistral 7B model (4.4GB)
+ollama pull mistral
+
+# Test local inference
+ollama run mistral "Hello, who are you?"
+```
+
 ### 3. Run Tests
 
 ```bash
@@ -83,6 +98,9 @@ pytest tests/
 
 # Run specific test suite
 pytest tests/test_ml/
+
+# Test Ollama integration (local LLM)
+python tests/test_ollama.py
 
 # With coverage
 pytest --cov=src tests/
@@ -130,6 +148,15 @@ python examples/rag_demo.py
 - ✅ **Customizable**: Rate, volume, voice selection
 - ✅ **5 Demo Scenarios**: Basic TTS, Romanian, English, customization, context-aware
 
+### 🤖 Local LLM Support (NEW!)
+- ✅ **Ollama Integration**: Fast local inference on M-series Macs
+- ✅ **Mistral 7B**: 4.4GB model running at ~15 tokens/sec on M3
+- ✅ **Three LLM Providers**: Claude (cloud), Mistral API (cloud), Ollama (local)
+- ✅ **Unified Interface**: Same API for all providers via LLMInterface
+- ✅ **Training Ready**: Transformers + PEFT + MPS (Metal) for fine-tuning
+- ✅ **Cost Optimization**: Reduce API costs with local inference
+- ✅ **Privacy**: Keep sensitive queries 100% local
+
 ### Deep Learning Core
 - ✅ **Scaled Dot-Product Attention** cu causal masking
 - ✅ **Multi-Head Attention** pentru parallel processing
@@ -158,6 +185,7 @@ python examples/rag_demo.py
 | Language | Python | 3.11+ |
 | LLM | Anthropic Claude | 3.5 Sonnet |
 | LLM (Alt) | Mistral AI | Large/Small |
+| LLM (Local) | Ollama + Mistral 7B | 0.13.5 |
 | Embeddings | Sentence Transformers | Multi-MiniLM-L12 |
 | Embeddings (Alt) | Mistral Embed | 1024D |
 | Vector DB | ChromaDB | 1.3.5 |
