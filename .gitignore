@@ -77,3 +77,5 @@ dmypy.json
 *.temp
 .cache/
 demo_chroma_*/
+models/mlx-mistral-7b-4bit/weights.npz
+chroma_db/
